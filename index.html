@@ -160,7 +160,7 @@ function fill(m, d, keepPad) {
   if (!d.approved) { m.appendChild(el('p', '', owner ? 'It is off. Turn its switch on to let far ends use it.' : 'It is off. Only its owner can switch it on, at home.')); return; }
   if (d.screen) {
     const b = el('button', 'go', 'Open its screen'); b.onclick = () => openPad(d); const row = el('div', 'row'); row.appendChild(b); m.appendChild(row);
-    m.appendChild(keepPad || $('padT').content.firstElementChild.cloneNode(true)); wirePad();
+    const pad = keepPad || $('padT').content.firstElementChild.cloneNode(true); m.appendChild(pad); wirePad(pad.querySelector('#img'));
   }
   if (d.audio_out) {
     m.appendChild(el('h3', '', 'Say something through it'));
@@ -272,8 +272,8 @@ function live() {        // the live screen. At home an <img> reads the MJPEG st
   };
   iroh().then(w => w.home_stream(FAR.ticket, '/v1/stream?w=640&fps=10', FAR.token, onChunk)).catch(() => {}).finally(() => { if (mine === feed && $('pad') && $('pad').className) setTimeout(live, 2000); });
 }
-function wirePad() {
-  const img = $('img'); if (!img || img.wired) return; img.wired = true; let down = 0;
+function wirePad(img) {        // the card is not in the page yet when this runs, so it takes the picture itself
+  img = img || $('img'); if (!img || img.wired) return; img.wired = true; let down = 0;
   img.onerror = () => { if (!FAR) setTimeout(() => { if ($('pad') && $('pad').className) live(); }, 2000); };
   img.addEventListener('pointerdown', e => { down = performance.now(); e.preventDefault(); });
   img.addEventListener('pointerup', e => {
