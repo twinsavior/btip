@@ -45,15 +45,36 @@
   #people small { color:var(--dim); display:block; font-size:13px; }
   #invite { padding:14px; } #link { width:100%; margin-top:10px; background:#0b0d0f; color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:13px ui-monospace,monospace; word-break:break-all; display:none; }
   #invite p { color:var(--dim); font-size:13px; margin:8px 0 0; }
+  .field { margin-top:12px; } .field > span { display:block; color:var(--dim); font-size:13px; margin-bottom:6px; }
+  .pick label { display:flex; align-items:center; gap:10px; padding:7px 2px; font-size:15px; } .pick label.all { color:var(--dim); font-size:14px; }
+  .pick input { width:18px; height:18px; accent-color:var(--blue); flex:none; } .pick p { margin:2px 0; color:var(--dim); font-size:13px; }
+  select { background:#0b0d0f; color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:9px 10px; font:inherit; width:100%; }
+  #people .person { border-bottom:1px solid #20262b; } #people .person:last-child { border-bottom:0; } #people .person .kv { border-bottom:0; }
+  #people .person.gone b { color:var(--dim); } .exp { color:var(--warn); }
+  .edit { padding:0 14px 14px; } .edit .row button { flex:1; }
+  #pausebox { display:flex; align-items:center; gap:10px; padding:12px 14px; } #pausebox span { flex:1; } #pausebox small { color:var(--dim); display:block; font-size:13px; }
+  #pausebox.on { background:#2b2416; } #pausebox.on b { color:#f3d79c; }
+  .more .kv button, .sheet button.small { padding:5px 10px; font-size:13px; }
+  .sheet { margin-top:10px; background:#0b0d0f; border:1px solid var(--line); border-radius:12px; padding:12px; } .sheet .link { margin-top:10px; word-break:break-all; font:13px ui-monospace,monospace; color:var(--ink); }
+  .mode { color:var(--dim); } .mode.ro { color:var(--ok); }
+  .touch { font-size:13px; color:var(--dim); padding:5px 0; border-bottom:1px solid #20262b; display:flex; gap:8px; } .touch b { color:var(--ink); font-weight:500; } .touch .no { color:var(--warn); }
+  .never-note { color:var(--dim); font-size:13px; margin:0 0 10px; }
 </style>
 <div class="wrap">
   <header><h1>Home</h1><p id="st">Connecting to home…</p><div id="perm"></div></header>
   <div id="ownerbox" hidden>
     <h2>People who can reach this home</h2>
+    <div class="card" id="pausebox"><span><b>Pause all links</b><small id="pausetxt">Stops every link at once. Turn it off and they work again.</small></span><button class="sw" id="pausesw" aria-label="Pause all links" onclick="pauseAll()"></button></div>
     <div class="card" id="invite">
-      <form class="row" onsubmit="invite(event)" style="margin-top:0"><input id="who" placeholder="Friend's name" autocomplete="off"><button class="go">Make a link</button></form>
+      <form onsubmit="invite(event)">
+        <div class="row" style="margin-top:0"><input id="who" placeholder="Friend's name" autocomplete="off"></div>
+        <div class="field"><span>Devices they can use</span><div class="pick" id="pick"></div></div>
+        <div class="field"><span>What they can do</span><select id="mode"><option value="read" selected>Look and listen only (read-only)</option><option value="full">Act on it too (full access)</option></select></div>
+        <div class="field"><span>For how long</span><select id="hours"><option value="1">1 hour</option><option value="24" selected>1 day</option><option value="168">1 week</option><option value="">Until you remove it</option></select></div>
+        <div class="row"><button class="go" style="flex:1">Make a link</button></div>
+      </form>
       <div id="link"></div><div class="row" id="linkbtns" hidden><button type="button" onclick="copyLink()">Copy link</button><button type="button" id="sharebtn" onclick="shareLink()">Share…</button></div>
-      <p>Send the link to one person. They open it in any browser, anywhere, and can use only the devices you switch on below. You can remove them at any time.</p>
+      <p>Send the link to one person. They open it in any browser, anywhere, and see only the devices you tick, while their switch below is on. Read-only means they can read and watch but change nothing. You can change or remove the link at any time.</p>
     </div>
     <div class="card" id="people"></div>
   </div>
@@ -106,23 +127,26 @@ const battery = b => b.level ? b.level + '%' : [b.left && 'left ' + b.left + '%'
 
 async function load(seconds) {
   if (seconds) { $('foot').textContent = 'Looking for Bluetooth devices near home…'; }
-  const r = await call('devices', { seconds: seconds || 0 }, seconds ? 'Scanning Bluetooth at home…' : null, seconds ? (r => r.devices.length + ' named Bluetooth devices at home.') : null);
+  const r = await call('devices', { seconds: seconds || 0 }, seconds ? 'Scanning Bluetooth at home…' : null, seconds ? (r => r.bluetooth_permission && r.bluetooth_permission !== 'allowed' ? (owner ? 'Bluetooth is waiting for your OK: see the note at the top.' : 'Bluetooth at home is waiting for its owner to click Allow on that computer.') : r.devices.length + ' named Bluetooth devices at home.') : null);
   if (!r.ok) { $('foot').textContent = ''; return; }
   if (!seconds) for (const d of r.devices) { const old = rows.find(o => o.key === d.key); if (old && old.near) Object.assign(d, { near: true, rssi: old.rssi, ble_id: old.ble_id, maker: old.maker }); }
   else $('foot').textContent = r.unnamed_near ? 'Plus ' + r.unnamed_near + ' devices nearby that don’t broadcast a name.' : '';
-  rows = r.devices; draw();
+  rows = r.devices; draw(); if (owner) { drawPick(); if (!editing) people(); }
 }
+const modeWord = m => m === 'read' ? 'read-only' : 'full access';
 function draw() {
   const list = $('list'), keepPad = $('pad'); if (keepPad) keepPad.remove(); list.innerHTML = '';
+  const never = rows.filter(d => d.never);
   for (const d of rows) {
+    if (d.never && d === never[0]) { const h = el('h2', '', 'Never shared'); list.appendChild(h); list.appendChild(el('p', 'never-note', 'A lock, a key, a car, a garage door or an alarm: being near it is what makes it safe, so btip never carries one. No switch changes that.')); }
     const c = el('div', 'card' + (d.approved ? '' : ' off') + (open === d.key ? ' open' : '')), top = el('div', 'dev'), txt = el('div', 'txt');
     const ic = el('span', 'icon'); ic.innerHTML = icon(d); top.appendChild(ic);
     txt.appendChild(el('b', '', d.name));
     txt.appendChild(el('small', '', [d.kind, d.state || null, d.near ? where(d.rssi) : (d.paired ? null : 'not in range now')].filter(Boolean).join(' · ')));
     txt.onclick = () => { open = open === d.key ? null : d.key; draw(); if (open && d.approved && d.near && !d.screen) facts(d); };
     top.appendChild(txt);
-    if (owner) { const sw = el('button', 'sw' + (d.approved ? ' on' : '')); sw.setAttribute('aria-label', (d.approved ? 'Switch off ' : 'Switch on ') + d.name); sw.onclick = () => flip(d); top.appendChild(sw); }
-    else top.appendChild(el('span', 'tag' + (d.approved ? ' on' : ''), d.approved ? 'On' : 'Off'));
+    if (owner && !d.never) { const sw = el('button', 'sw' + (d.approved ? ' on' : '')); sw.setAttribute('aria-label', (d.approved ? 'Switch off ' : 'Switch on ') + d.name); sw.onclick = () => flip(d); top.appendChild(sw); }
+    else if (!d.never) top.appendChild(el('span', 'tag' + (d.approved ? ' on' : ''), d.approved ? (d.access === 'read-only' ? 'Read-only' : 'On') : 'Off'));
     c.appendChild(top);
     const m = el('div', 'more'); c.appendChild(m);
     if (open === d.key) fill(m, d, keepPad);
@@ -154,11 +178,56 @@ function fill(m, d, keepPad) {
     m.appendChild(row);
   }
   if (d.near && !d.screen) { const p = el('div'); p.id = 'facts'; m.appendChild(p); }
+  if (owner) shareBlock(m, d);
+}
+// The share sheet on a device, like a document's: who has it, read-only or full, until when, one tap to pull it, and who touched it.
+let folk = [], openSheet = null, madeLinks = {};
+function shareBlock(m, d) {
+  m.appendChild(el('h3', '', 'Shared with'));
+  const who = folk.filter(p => !p.owner && (p.devices == null || p.devices.includes(d.key)));
+  if (!who.length) m.appendChild(el('p', '', 'Nobody yet.'));
+  for (const p of who) {
+    const row = el('div', 'kv'), t = el('span'); t.appendChild(el('b', '', p.name + ' '));
+    t.appendChild(el('span', 'mode' + (p.mode === 'read' ? ' ro' : ''), modeWord(p.mode) + (p.devices == null ? ', every device that is on' : '') + (p.expired ? ', expired' : p.expires_t ? ', until ' + when(p.expires_t) : '')));
+    row.appendChild(t); const b = el('button', 'small', 'Remove'); b.setAttribute('aria-label', 'Remove ' + p.name);
+    b.onclick = async () => { const x = await post('revoke', { name: p.name }); say(x.ok ? p.name + ' can no longer reach ' + d.name + ' or anything else here.' : x.error, !x.ok); await people(); draw(); };
+    row.appendChild(b); m.appendChild(row);
+  }
+  const row = el('div', 'row'), b = el('button', 'go', 'Share ' + d.name + '…'); b.className = 'go share'; row.appendChild(b); m.appendChild(row);
+  const box = el('div', 'sheet'); box.hidden = openSheet !== d.key; m.appendChild(box); if (!box.hidden) sheet(box, d);
+  b.onclick = () => { openSheet = openSheet === d.key ? null : d.key; box.hidden = openSheet !== d.key; if (!box.hidden) sheet(box, d); };
+  const tb = el('div'); tb.className = 'touched'; m.appendChild(tb); touched(tb, d);
+}
+function sheet(box, d) {
+  box.innerHTML = ''; const f = el('form'), nm = el('input'); nm.placeholder = "Their name"; nm.autocomplete = 'off'; nm.className = 'who';
+  const r1 = el('div', 'row'); r1.style.marginTop = '0'; r1.appendChild(nm); f.appendChild(r1);
+  const f1 = el('div', 'field'), md = el('select'); md.className = 'mode'; f1.appendChild(el('span', '', 'What ' + d.name + ' lets them do'));
+  for (const [v, t] of [['read', 'Look and listen only (read-only)'], ['full', 'Act on it too (full access)']]) { const o = el('option', '', t); o.value = v; md.appendChild(o); } f1.appendChild(md); f.appendChild(f1);
+  const f2 = el('div', 'field'), hs = el('select'); hs.className = 'hours'; f2.appendChild(el('span', '', 'For how long'));
+  for (const [v, t] of [['1', '1 hour'], ['24', '1 day'], ['168', '1 week'], ['', 'Until you remove it']]) { const o = el('option', '', t); o.value = v; if (v === '24') o.selected = true; hs.appendChild(o); } f2.appendChild(hs); f.appendChild(f2);
+  const r2 = el('div', 'row'), go = el('button', 'go', 'Make a link'); go.style.flex = '1'; r2.appendChild(go); f.appendChild(r2); box.appendChild(f);
+  const out = el('div', 'link'), btns = el('div', 'row'); btns.hidden = true; box.appendChild(out); box.appendChild(btns);
+  const show = link => { out.textContent = link; btns.innerHTML = ''; btns.hidden = false; const c = el('button', '', 'Copy link'); c.onclick = () => navigator.clipboard.writeText(link).then(() => say('Copied. Paste it into a message to them.'), () => say('Select the link above and copy it.', true)); btns.appendChild(c);
+    if (navigator.share) { const sh = el('button', '', 'Share…'); sh.onclick = () => navigator.share({ title: d.name, text: 'I shared my Bluetooth device ' + d.name + ' with you. Open this link to reach it:', url: link }).catch(() => {}); btns.appendChild(sh); } };
+  if (madeLinks[d.key]) show(madeLinks[d.key]);
+  f.onsubmit = async e => {
+    e.preventDefault(); const name = nm.value.trim() || 'friend', h = hs.value;
+    const r = await call('invite', { name, devices: [d.key], hours: h ? +h : null, mode: md.value }, 'Making a link for ' + name + '…', r => d.name + ' is shared with ' + r.name + ', ' + modeWord(md.value) + ', ' + (h ? 'for ' + HOURS[h] : 'until you remove it') + '. Send the link only to them.');
+    if (!r.ok) return; madeLinks[d.key] = r.link; show(r.link); await people(); draw();
+  };
+}
+const whenStr = t => { const m = /^(\d+)-(\d+)-(\d+) (\d+):(\d+)/.exec(t || ''); return m ? when(new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5]).getTime() / 1000) : t; };
+async function touched(box, d) {
+  const r = await post('touched', { device: d.key, limit: 6 }); if (!r.ok || !box.isConnected) return;
+  box.appendChild(el('h3', '', 'Who touched it'));
+  if (!r.recent.length) { box.appendChild(el('p', '', 'Nobody has used it from away yet.')); return; }
+  for (const x of r.recent) { const l = el('div', 'touch'); l.appendChild(el('span', '', whenStr(x.t))); l.appendChild(el('b', '', x.who)); l.appendChild(el('span', '', x.did + (x.change ? '' : ' (read)'))); if (!x.ok) l.appendChild(el('span', 'no', 'refused' + (x.why ? ': ' + x.why : ''))); box.appendChild(l); }
+  const sum = r.people.map(p => p.who + ': ' + p.calls + ' calls, ' + p.changes + ' changes, ' + p.refused + ' refused').join(' · '); if (sum) box.appendChild(el('p', '', sum));
 }
 async function flip(d) {
   const on = !d.approved, r = await post('approve', { device: d.name, on });
   if (!r.ok) return say(r.error, true);
-  d.approved = on; say(on ? d.name + ' is on. Far ends you enrolled can use it now.' : d.name + ' is off. No far end can use it.'); draw();
+  d.approved = on; say(on ? d.name + ' is on. Far ends you enrolled can use it now.' : d.name + ' is off. No far end can use it.'); draw(); drawPick(); people();
 }
 async function facts(d) {
   const f = $('facts'); if (!f) return; f.appendChild(el('p', '', 'Reading ' + d.name + ' over Bluetooth…'));
@@ -223,27 +292,87 @@ async function status() {
   const s = await get('/v1/status');
   if (!s || !s.ok) { $('st').textContent = s ? s.error : 'Home is not reachable right now.'; return; }
   const was = owner; owner = !!s.owner;
-  $('st').textContent = 'Connected to ' + s.home + (owner ? '. You are its owner: the switches are yours.' : '. You can use the devices its owner switched on.');
+  if (owner) $('st').textContent = 'Connected to ' + s.home + '. You are its owner: the switches and the sharing are yours.';
+  else {
+    const names = (s.shared || []).map(nameOf).join(', ');
+    $('st').textContent = s.home + ' shared ' + (names || 'the devices it switches on') + ' with you' + (s.access === 'read-only' ? ': read-only' : '') + (s.until ? ', until ' + when(s.until) : '') + '.';
+    $('say').textContent = 'You see only what ' + s.home + ' shared with you. Each thing you do here goes into its owner’s log under your name (' + s.who + ').' + (s.access === 'read-only' ? ' Read-only: you can read and watch, not change.' : '');
+  }
   const pm = owner && PERM[s.bluetooth_permission]; $('perm').textContent = pm || ''; $('perm').className = pm ? 'on' : '';
   if (owner && s.bluetooth_permission === 'allowed' && was && lastPerm !== 'allowed') load(4);
   lastPerm = s.bluetooth_permission; $('ownerbox').hidden = !owner;
-  if (was !== owner) { draw(); if (owner) people(); }
+  if (was !== owner) { draw(); if (owner) { drawPick(); people(); } }
 }
 let lastPerm = null, lastLink = '';
+// The device picker, used to make a link and to edit one. devices: null = every device that is on, now and later.
+const nameOf = k => (rows.find(d => d.key === k) || {}).name || k;
+function picker(box, chosen) {        // chosen: null (every device) or a list of keys
+  box.innerHTML = ''; const on = rows.filter(d => d.approved);
+  const all = el('label', 'all'), a = el('input'); a.type = 'checkbox'; a.className = 'every'; a.checked = chosen === null;
+  all.appendChild(a); all.appendChild(el('span', '', 'Every device I switch on, now and later')); box.appendChild(all);
+  const list = el('div'); box.appendChild(list);
+  const keys = new Set([...on.map(d => d.key), ...(chosen || [])]);
+  if (!keys.size) list.appendChild(el('p', '', 'No device is on yet. Switch one on below.'));
+  for (const k of keys) {
+    const l = el('label'), i = el('input'); i.type = 'checkbox'; i.dataset.key = k; i.checked = chosen === null || chosen.includes(k);
+    l.appendChild(i); l.appendChild(el('span', '', nameOf(k) + (on.some(d => d.key === k) ? '' : ' (switched off now)'))); list.appendChild(l);
+  }
+  const sync = () => { list.hidden = a.checked; }; a.onchange = sync; sync();
+}
+const picked = box => box.querySelector('.every').checked ? null : [...box.querySelectorAll('input[data-key]')].filter(i => i.checked).map(i => i.dataset.key);
+let pickTouched = false;
+function drawPick() {        // keep the owner's ticks while the list refreshes
+  const box = $('pick'); if (!box) return;
+  const now = box.querySelector('.every') ? picked(box) : undefined;
+  picker(box, pickTouched && now !== undefined ? now : rows.filter(d => d.approved).map(d => d.key));
+  box.onchange = () => { pickTouched = true; };
+}
+const HOURS = { '1': '1 hour', '24': '1 day', '168': '1 week', '': 'until you remove it' };
 async function invite(e) {
-  e.preventDefault(); const name = $('who').value.trim() || 'friend';
-  const r = await call('invite', { name }, 'Making a link for ' + name + '…', r => 'Link for ' + r.name + ' is ready. Send it only to them.');
+  e.preventDefault(); const name = $('who').value.trim() || 'friend', devices = picked($('pick')), h = $('hours').value;
+  if (devices && !devices.length) return say('Tick at least one device for ' + name + '.', true);
+  const r = await call('invite', { name, devices, hours: h ? +h : null, mode: $('mode').value }, 'Making a link for ' + name + '…', r => 'Link for ' + r.name + ' is ready: ' + modeWord($('mode').value) + ', ' + (h ? 'for ' + HOURS[h] : 'until you remove it') + '. Send it only to them.');
   if (!r.ok) return; lastLink = r.link; $('link').textContent = r.link; $('link').style.display = 'block'; $('linkbtns').hidden = false; $('sharebtn').hidden = !navigator.share; $('who').value = ''; people();
 }
 function copyLink() { navigator.clipboard.writeText(lastLink).then(() => say('Copied. Paste it into a message to your friend.'), () => say('Select the link above and copy it.', true)); }
 function shareLink() { navigator.share({ title: 'My Bluetooth devices', text: 'Open this to reach the Bluetooth devices I switch on for you:', url: lastLink }).catch(() => {}); }
+const when = t => { const d = new Date(t * 1000), now = new Date(), tm = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return d.toDateString() === now.toDateString() ? 'today ' + tm : d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }) + ' ' + tm; };
+let paused = false, editing = null;
+async function pauseAll() {
+  const r = await call('pause', { on: !paused }, null, r => r.paused ? 'All links are paused. Nobody but you can reach this home.' : 'Links work again.');
+  if (r.ok) people();
+}
 async function people() {
   const r = await post('people'); const box = $('people'); if (!r.ok) return; box.innerHTML = '';
-  const far_ = r.people.filter(p => !p.owner);
-  if (!far_.length) { box.appendChild(el('div', 'kv', 'Nobody yet. Make a link above.')); return; }
+  paused = !!r.paused; $('pausesw').className = 'sw' + (paused ? ' on' : ''); $('pausebox').className = 'card' + (paused ? ' on' : '');
+  $('pausetxt').textContent = paused ? 'On: every link is stopped now. Only you can reach this home.' : 'Stops every link at once. Turn it off and they work again.';
+  const far_ = r.people.filter(p => !p.owner); folk = r.people;
+  if (!far_.length) { box.appendChild(el('div', 'kv', 'Nobody yet. Make a link above, or press Share on a device.')); return; }
   for (const p of far_) {
-    const row = el('div', 'kv'), t = el('div'); t.appendChild(el('b', '', p.name)); t.appendChild(el('small', '', 'invited ' + p.since + (p.last_call ? ' · last used ' + p.last_call : ' · not used yet'))); row.appendChild(t);
-    const b = el('button', '', 'Remove'); b.onclick = async () => { const x = await post('revoke', { name: p.name }); say(x.ok ? p.name + ' can no longer reach this home.' : x.error, !x.ok); people(); }; row.appendChild(b); box.appendChild(row);
+    const card = el('div', 'person' + (p.expired ? ' gone' : '')); card.dataset.name = p.name;
+    const row = el('div', 'kv'), t = el('div'); t.appendChild(el('b', '', p.name));
+    t.appendChild(el('small', 'devs', (p.devices === null || p.devices === undefined ? 'Every device that is on' : p.devices.length ? p.devices.map(nameOf).join(', ') : 'No devices') + ' · ' + modeWord(p.mode)));
+    t.appendChild(el('small', 'until' + (p.expired ? ' exp' : ''), p.expired ? 'Expired ' + when(p.expires_t) : p.expires_t ? 'Until ' + when(p.expires_t) : 'Until you remove it'));
+    t.appendChild(el('small', '', p.last_call ? 'Last used ' + p.last_call : 'Not used yet')); row.appendChild(t);
+    const b = el('button', '', editing === p.name ? 'Close' : 'Edit'); b.onclick = () => { editing = editing === p.name ? null : p.name; people(); }; row.appendChild(b); card.appendChild(row);
+    if (editing === p.name) {
+      const ed = el('div', 'edit'), f1 = el('div', 'field'), pk = el('div', 'pick'); f1.appendChild(el('span', '', 'Devices ' + p.name + ' can use')); f1.appendChild(pk); ed.appendChild(f1); picker(pk, p.devices ?? null);
+      const f2 = el('div', 'field'), sel = el('select'); f2.appendChild(el('span', '', 'For how long'));
+      for (const [v, label] of [['keep', p.expired ? 'Keep it expired' : 'Keep as it is'], ['1', '1 hour from now'], ['24', '1 day from now'], ['168', '1 week from now'], ['', 'Until you remove it']]) { const o = el('option', '', label); o.value = v; sel.appendChild(o); }
+      f2.appendChild(sel); ed.appendChild(f2);
+      const f3 = el('div', 'field'), md = el('select'); f3.appendChild(el('span', '', 'What ' + p.name + ' can do'));
+      for (const [v, label] of [['read', 'Look and listen only (read-only)'], ['full', 'Act on it too (full access)']]) { const o = el('option', '', label); o.value = v; o.selected = (p.mode || 'full') === v; md.appendChild(o); }
+      f3.appendChild(md); ed.appendChild(f3);
+      const btns = el('div', 'row'), save = el('button', 'go', 'Save'), rm = el('button', '', 'Remove link');
+      save.onclick = async () => {
+        const devices = picked(pk); if (devices && !devices.length) return say('Tick at least one device, or remove the link.', true);
+        const args = { name: p.name, devices, mode: md.value }; if (sel.value !== 'keep') args.hours = sel.value ? +sel.value : null;
+        const x = await call('share', args, 'Saving…', p.name + '’s link is changed. It applies at once.'); if (x.ok) { editing = null; await people(); draw(); } };
+      rm.onclick = async () => { const x = await post('revoke', { name: p.name }); say(x.ok ? p.name + ' can no longer reach this home.' : x.error, !x.ok); editing = null; people(); };
+      btns.appendChild(save); btns.appendChild(rm); ed.appendChild(btns); card.appendChild(ed);
+    }
+    box.appendChild(card);
   }
 }
 status().then(() => load(0)).then(() => load(4)); setInterval(status, 5000);
