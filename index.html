@@ -1,0 +1,250 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<title>btip Home</title>
+<style>
+  :root { --bg:#0e1113; --card:#181c20; --line:#2a3037; --ink:#eceff1; --dim:#8d969f; --blue:#4c9bf5; --ok:#3fb27f; --warn:#e0a03c; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.4 -apple-system,system-ui,sans-serif; padding:0 16px 40px; }
+  .wrap { max-width:520px; margin:0 auto; }
+  header { padding:18px 0 6px; }
+  header h1 { margin:0; font-size:22px; font-weight:650; letter-spacing:-.01em; }
+  header p { margin:4px 0 0; color:var(--dim); font-size:14px; }
+  h2 { font-size:13px; font-weight:600; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; margin:26px 0 10px; display:flex; align-items:center; gap:10px; }
+  h2 button { margin-left:auto; font-size:13px; padding:5px 10px; text-transform:none; letter-spacing:0; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:10px; overflow:hidden; }
+  .card.off { opacity:.72; }
+  .dev { display:flex; align-items:center; gap:12px; padding:14px; }
+  .dev .txt { flex:1; min-width:0; cursor:pointer; }
+  .icon { width:38px; height:38px; border-radius:10px; background:#232a31; display:grid; place-items:center; flex:none; color:var(--blue); }
+  .off .icon { color:var(--dim); }
+  .dev b { display:block; font-weight:600; } .dev small { color:var(--dim); font-size:13px; display:block; }
+  .sw { flex:none; width:50px; height:30px; border-radius:15px; background:#39424b; border:0; padding:0; position:relative; transition:background .15s; }
+  .sw::after { content:""; position:absolute; top:3px; left:3px; width:24px; height:24px; border-radius:50%; background:#fff; transition:left .15s; }
+  .sw.on { background:var(--ok); } .sw.on::after { left:23px; }
+  .tag { flex:none; font-size:12px; color:var(--dim); border:1px solid var(--line); border-radius:8px; padding:3px 8px; } .tag.on { color:var(--ok); border-color:#2c5f4a; }
+  .more { border-top:1px solid var(--line); padding:6px 14px 14px; display:none; } .open .more { display:block; }
+  .more .kv { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid #20262b; font-size:15px; }
+  .more .kv span:first-child { color:var(--dim); } .more .kv span:last-child { text-align:right; word-break:break-word; }
+  .more p { margin:10px 0 0; color:var(--dim); font-size:13px; }
+  .more h3 { margin:14px 0 8px; font-size:13px; color:var(--dim); font-weight:600; }
+  button { background:#262d34; color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:10px 14px; font:inherit; }
+  button:active { background:#333c45; } button.go { background:var(--blue); border-color:var(--blue); color:#fff; font-weight:600; }
+  #foot { color:var(--dim); font-size:14px; padding:4px 2px; }
+  #pad { display:none; margin-top:12px; } #pad.on { display:block; }
+  #screen { position:relative; margin:0 auto 12px; max-width:380px; }
+  #screen img { display:block; width:100%; aspect-ratio:820/1180; object-fit:contain; border-radius:16px; border:1px solid var(--line); background:#000; touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  #ping { position:absolute; width:30px; height:30px; margin:-15px; border-radius:50%; border:2px solid var(--blue); opacity:0; pointer-events:none; transition:opacity .5s; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; } .row input { flex:1; min-width:0; background:#0b0d0f; color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; }
+  audio { width:100%; margin-top:8px; }
+  #say { position:sticky; bottom:12px; margin-top:16px; background:#20262c; border:1px solid var(--line); border-radius:12px; padding:10px 14px; font-size:14px; color:var(--dim); min-height:42px; }
+  #say.bad { color:var(--warn); }
+  #perm { display:none; background:#2b2416; border:1px solid #5a4620; color:#f3d79c; border-radius:12px; padding:12px 14px; margin-top:12px; font-size:15px; } #perm.on { display:block; }
+  #people .kv { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid #20262b; } #people .kv:last-child { border-bottom:0; }
+  #people small { color:var(--dim); display:block; font-size:13px; }
+  #invite { padding:14px; } #link { width:100%; margin-top:10px; background:#0b0d0f; color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:13px ui-monospace,monospace; word-break:break-all; display:none; }
+  #invite p { color:var(--dim); font-size:13px; margin:8px 0 0; }
+</style>
+<div class="wrap">
+  <header><h1>Home</h1><p id="st">Connecting to home…</p><div id="perm"></div></header>
+  <div id="ownerbox" hidden>
+    <h2>People who can reach this home</h2>
+    <div class="card" id="invite">
+      <form class="row" onsubmit="invite(event)" style="margin-top:0"><input id="who" placeholder="Friend's name" autocomplete="off"><button class="go">Make a link</button></form>
+      <div id="link"></div><div class="row" id="linkbtns" hidden><button type="button" onclick="copyLink()">Copy link</button><button type="button" id="sharebtn" onclick="shareLink()">Share…</button></div>
+      <p>Send the link to one person. They open it in any browser, anywhere, and can use only the devices you switch on below. You can remove them at any time.</p>
+    </div>
+    <div class="card" id="people"></div>
+  </div>
+  <h2>Bluetooth devices at home <button onclick="load(4)">Scan again</button></h2>
+  <div id="list"></div><div id="foot"></div>
+  <div id="say">Each device has a switch. Far ends can use a device only while its owner has it on.</div>
+</div>
+<template id="padT">
+  <div id="pad">
+    <div id="screen"><img id="img" alt="The device's screen, live"><span id="ping"></span></div>
+    <form class="row" onsubmit="typeIt(event)"><input id="txt" placeholder="Type on it" autocapitalize="off" autocomplete="off" autocorrect="off"><button class="go">Send</button></form>
+    <div class="row"><button type="button" onclick="key('home','Home')">Home</button><button type="button" onclick="key('cmd+space','Search')">Search</button><button type="button" onclick="key('cmd+tab','Switch app')">Switch app</button><button type="button" onclick="key('enter','Return')">Return</button><button type="button" onclick="key('backspace','Delete')">Delete</button></div>
+  </div>
+</template>
+<script>
+const $ = id => document.getElementById(id);
+let owner = false, open = null, rows = [];
+function say(t, bad) { $('say').textContent = t; $('say').className = bad ? 'bad' : ''; }
+// Two ways to reach the home with one page. At home: plain fetch to this computer. Far away: the link is
+// this page plus #ticket=...&t=..., and every call rides an iroh connection (WebAssembly) through a public relay.
+// The fragment never leaves the browser, so the server that hosts this page never sees the ticket or the token.
+const F = new URLSearchParams(location.hash.slice(1)), FAR = F.get('ticket') && F.get('t') ? { ticket: F.get('ticket'), token: F.get('t') } : null;
+const NOHOME = { ok: false, error: 'Home did not answer. Is the computer there awake and online?' };
+let wasm = null, chain = Promise.resolve(), busy = 0;
+async function iroh() { if (!wasm) { const m = await import('./pkg/btip_web.js'); await m.default(); wasm = m; } return wasm; }
+function far(method, path, body) {        // calls on the kept stream must not overlap: queue them
+  const run = async () => { busy++; try { const w = await iroh(); const r = await w.home_fetch_keep(FAR.ticket, method, path, FAR.token, body); try { return JSON.parse(r.body); } catch (e) { return { ok: false, error: 'HTTP ' + r.status }; } } catch (e) { return NOHOME; } finally { busy--; } };
+  const p = chain.then(run, run); chain = p.catch(() => {}); return p;
+}
+async function post(path, args) {
+  if (FAR) return far('POST', '/v1/' + path, JSON.stringify(args || {}));
+  return fetch('/v1/' + path, { method: 'POST', body: JSON.stringify(args || {}) }).then(r => r.json()).catch(() => NOHOME);
+}
+async function get(path) { return FAR ? far('GET', path) : fetch(path).then(r => r.json()).catch(() => null); }
+async function call(verb, args, doing, done) {
+  if (doing) say(doing);
+  const r = await post(verb, args);
+  if (!r.ok) say(r.error, true); else if (done) say(typeof done === 'function' ? done(r) : done);
+  return r;
+}
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const ICONS = {
+  screen: '<rect x="5" y="2" width="14" height="20" rx="2.5"/><path d="M11 18.5h2"/>',
+  sound: '<path d="M4 14v-2a8 8 0 0116 0v2"/><rect x="2.5" y="14" width="4.5" height="7" rx="1.5"/><rect x="17" y="14" width="4.5" height="7" rx="1.5"/>',
+  keys: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
+  bt: '<path d="M7 7l10 10-5 5V2l5 5L7 17"/>' };
+const icon = d => '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICONS[d.screen ? 'screen' : d.audio_out ? 'sound' : /keyboard/.test(d.kind || '') ? 'keys' : 'bt'] + '</svg>';
+const where = rssi => rssi > -55 ? 'very close to the home computer' : rssi > -67 ? 'in the same room' : rssi > -78 ? 'a room away' : 'at the far edge of range';
+const battery = b => b.level ? b.level + '%' : [b.left && 'left ' + b.left + '%', b.right && 'right ' + b.right + '%', b.case && 'case ' + b.case + '%'].filter(Boolean).join(', ');
+
+async function load(seconds) {
+  if (seconds) { $('foot').textContent = 'Looking for Bluetooth devices near home…'; }
+  const r = await call('devices', { seconds: seconds || 0 }, seconds ? 'Scanning Bluetooth at home…' : null, seconds ? (r => r.devices.length + ' named Bluetooth devices at home.') : null);
+  if (!r.ok) { $('foot').textContent = ''; return; }
+  if (!seconds) for (const d of r.devices) { const old = rows.find(o => o.key === d.key); if (old && old.near) Object.assign(d, { near: true, rssi: old.rssi, ble_id: old.ble_id, maker: old.maker }); }
+  else $('foot').textContent = r.unnamed_near ? 'Plus ' + r.unnamed_near + ' devices nearby that don’t broadcast a name.' : '';
+  rows = r.devices; draw();
+}
+function draw() {
+  const list = $('list'), keepPad = $('pad'); if (keepPad) keepPad.remove(); list.innerHTML = '';
+  for (const d of rows) {
+    const c = el('div', 'card' + (d.approved ? '' : ' off') + (open === d.key ? ' open' : '')), top = el('div', 'dev'), txt = el('div', 'txt');
+    const ic = el('span', 'icon'); ic.innerHTML = icon(d); top.appendChild(ic);
+    txt.appendChild(el('b', '', d.name));
+    txt.appendChild(el('small', '', [d.kind, d.state || null, d.near ? where(d.rssi) : (d.paired ? null : 'not in range now')].filter(Boolean).join(' · ')));
+    txt.onclick = () => { open = open === d.key ? null : d.key; draw(); if (open && d.approved && d.near && !d.screen) facts(d); };
+    top.appendChild(txt);
+    if (owner) { const sw = el('button', 'sw' + (d.approved ? ' on' : '')); sw.setAttribute('aria-label', (d.approved ? 'Switch off ' : 'Switch on ') + d.name); sw.onclick = () => flip(d); top.appendChild(sw); }
+    else top.appendChild(el('span', 'tag' + (d.approved ? ' on' : ''), d.approved ? 'On' : 'Off'));
+    c.appendChild(top);
+    const m = el('div', 'more'); c.appendChild(m);
+    if (open === d.key) fill(m, d, keepPad);
+    list.appendChild(c);
+  }
+}
+function kv(m, k, v) { const r = el('div', 'kv'); r.appendChild(el('span', '', k)); r.appendChild(el('span', '', v)); m.appendChild(r); }
+function fill(m, d, keepPad) {
+  if (d.battery) kv(m, 'Battery', battery(d.battery));
+  kv(m, 'From here you can', d.can.join('; '));
+  if (!d.approved) { m.appendChild(el('p', '', owner ? 'It is off. Turn its switch on to let far ends use it.' : 'It is off. Only its owner can switch it on, at home.')); return; }
+  if (d.screen) {
+    const b = el('button', 'go', 'Open its screen'); b.onclick = () => openPad(d); const row = el('div', 'row'); row.appendChild(b); m.appendChild(row);
+    m.appendChild(keepPad || $('padT').content.firstElementChild.cloneNode(true)); wirePad();
+  }
+  if (d.audio_out) {
+    m.appendChild(el('h3', '', 'Say something through it'));
+    const f = el('form', 'row'), i = el('input'); i.placeholder = 'Words to say out loud at home'; f.appendChild(i); f.appendChild(el('button', 'go', 'Say'));
+    f.onsubmit = e => { e.preventDefault(); if (i.value) call('speak', { device: d.name, text: i.value }, 'Connecting to ' + d.name + ' and speaking…', r => 'Said it through ' + d.name + ' in ' + r.s + ' s.'); };
+    m.appendChild(f);
+  }
+  if (d.mic) {
+    const row = el('div', 'row'), b = el('button', '', 'Listen for 5 seconds'); row.appendChild(b); m.appendChild(row);
+    b.onclick = async () => { const r = await call('listen', { device: d.name, seconds: 5 }, 'Listening through ' + d.name + '…', 'Recorded 5 seconds through ' + d.name + '. Press play.'); if (r.ok) { const a = el('audio'); a.controls = true; a.src = 'data:' + r.mime + ';base64,' + r.audio_b64; m.appendChild(a); } };
+  }
+  if (d.noise_control) {
+    m.appendChild(el('h3', '', 'Noise control')); const row = el('div', 'row');
+    for (const [mode, label] of [['off', 'Off'], ['cancel', 'Noise cancelling'], ['transparency', 'Transparency']]) { const b = el('button', '', label); b.onclick = () => call('noise', { device: d.name, mode }, 'Setting ' + label + '…', r => d.name + ' is now on: ' + r.mode + '.'); row.appendChild(b); }
+    m.appendChild(row);
+  }
+  if (d.near && !d.screen) { const p = el('div'); p.id = 'facts'; m.appendChild(p); }
+}
+async function flip(d) {
+  const on = !d.approved, r = await post('approve', { device: d.name, on });
+  if (!r.ok) return say(r.error, true);
+  d.approved = on; say(on ? d.name + ' is on. Far ends you enrolled can use it now.' : d.name + ' is off. No far end can use it.'); draw();
+}
+async function facts(d) {
+  const f = $('facts'); if (!f) return; f.appendChild(el('p', '', 'Reading ' + d.name + ' over Bluetooth…'));
+  const r = await call('ble_info', { device: d.ble_id }, 'Connecting to ' + d.name + '…', 'Read ' + d.name + ' live, over Bluetooth at home.');
+  const g = $('facts'); if (!g) return; g.innerHTML = '';
+  if (!r.ok) { g.appendChild(el('p', '', 'It did not accept a connection this time.')); return; }
+  for (const [k, v] of Object.entries(r.facts)) kv(g, k, v);
+  const bits = [];
+  if (!Object.keys(r.facts).length) bits.push('It connected and shares no standard facts');
+  if (r.private_values) bits.push(r.private_values + ' values in its maker’s own format');
+  if (r.writable) bits.push(r.writable + ' values it accepts');
+  if (r.locked_values) bits.push(r.locked_values + ' values that need pairing at home');
+  if (bits.length) g.appendChild(el('p', '', bits.join('. ') + '.'));
+}
+
+const key = (k, label) => call('key', { keys: [k] }, null, 'Pressed ' + label + '.');
+function typeIt(e) { e.preventDefault(); const t = $('txt').value; if (!t) return; call('type', { text: t }, 'Typing…', 'Typed “' + t + '”.').then(r => { if (r.ok) $('txt').value = ''; }); }
+async function openPad(d) {
+  const r = await call('wake', {}, 'Waking ' + d.name + ' over Bluetooth. About 15 seconds…', 'Live. Touch the picture to touch the device.');
+  if (!r.ok) return;
+  $('pad').className = 'on'; live();
+}
+let feed = 0;
+function live() {        // the live screen. At home an <img> reads the MJPEG stream; far away the page cuts the parts itself
+  const img = $('img'), mine = ++feed; if (!img) return;
+  if (!FAR) { img.src = '/v1/stream?w=640&fps=10&r=' + Date.now(); return; }
+  let buf = new Uint8Array(0), head = false, url = null;
+  const find = (pat, from) => { outer: for (let i = from || 0; i <= buf.length - pat.length; i++) { for (let j = 0; j < pat.length; j++) if (buf[i + j] !== pat[j]) continue outer; return i; } return -1; };
+  const CRLF2 = [13, 10, 13, 10], enc = s => [...s].map(c => c.charCodeAt(0));
+  const onChunk = c => {
+    if (mine !== feed || !$('pad') || !$('pad').className) return false;
+    const n = new Uint8Array(buf.length + c.length); n.set(buf); n.set(c, buf.length); buf = n;
+    if (!head) { const i = find(CRLF2); if (i < 0) return true; buf = buf.slice(i + 4); head = true; }
+    for (;;) {
+      const h = find(CRLF2); if (h < 0) break;
+      const m = /content-length:\s*(\d+)/i.exec(new TextDecoder().decode(buf.slice(0, h))); if (!m) { buf = buf.slice(h + 4); continue; }
+      const len = +m[1]; if (buf.length < h + 4 + len) break;
+      const jpg = buf.slice(h + 4, h + 4 + len); buf = buf.slice(h + 4 + len);
+      const u = URL.createObjectURL(new Blob([jpg], { type: 'image/jpeg' })); img.src = u; if (url) URL.revokeObjectURL(url); url = u;
+    }
+    return true;
+  };
+  iroh().then(w => w.home_stream(FAR.ticket, '/v1/stream?w=640&fps=10', FAR.token, onChunk)).catch(() => {}).finally(() => { if (mine === feed && $('pad') && $('pad').className) setTimeout(live, 2000); });
+}
+function wirePad() {
+  const img = $('img'); if (!img || img.wired) return; img.wired = true; let down = 0;
+  img.onerror = () => { if (!FAR) setTimeout(() => { if ($('pad') && $('pad').className) live(); }, 2000); };
+  img.addEventListener('pointerdown', e => { down = performance.now(); e.preventDefault(); });
+  img.addEventListener('pointerup', e => {
+    const b = img.getBoundingClientRect(), x = (e.clientX - b.left) / b.width, y = (e.clientY - b.top) / b.height, long = performance.now() - down > 500;
+    const p = $('ping'); p.style.left = (e.clientX - b.left) + 'px'; p.style.top = (e.clientY - b.top) + 'px'; p.style.opacity = 1; setTimeout(() => p.style.opacity = 0, 300);
+    call('tap', { x: +x.toFixed(4), y: +y.toFixed(4), hold_s: long ? 0.8 : 0.08 }, null, long ? 'Long press sent.' : 'Tap sent.');
+  });
+  img.addEventListener('contextmenu', e => e.preventDefault());
+}
+const PERM = {
+  'not asked yet': 'macOS is asking whether btip Home may use Bluetooth. Click Allow in that box. If you can’t see it, open System Settings, then Privacy & Security, then Bluetooth, and turn on btip Home.',
+  'denied': 'btip Home may not use Bluetooth yet. Open System Settings, then Privacy & Security, then Bluetooth, and turn on btip Home. Then this page fills in by itself.',
+  'blocked by a profile on this computer': 'A profile on this computer blocks Bluetooth for apps. Whoever manages this computer can allow it.' };
+async function status() {
+  if (FAR && busy) return;        // a long call is running on the kept stream; don't queue behind it
+  const s = await get('/v1/status');
+  if (!s || !s.ok) { $('st').textContent = s ? s.error : 'Home is not reachable right now.'; return; }
+  const was = owner; owner = !!s.owner;
+  $('st').textContent = 'Connected to ' + s.home + (owner ? '. You are its owner: the switches are yours.' : '. You can use the devices its owner switched on.');
+  const pm = owner && PERM[s.bluetooth_permission]; $('perm').textContent = pm || ''; $('perm').className = pm ? 'on' : '';
+  if (owner && s.bluetooth_permission === 'allowed' && was && lastPerm !== 'allowed') load(4);
+  lastPerm = s.bluetooth_permission; $('ownerbox').hidden = !owner;
+  if (was !== owner) { draw(); if (owner) people(); }
+}
+let lastPerm = null, lastLink = '';
+async function invite(e) {
+  e.preventDefault(); const name = $('who').value.trim() || 'friend';
+  const r = await call('invite', { name }, 'Making a link for ' + name + '…', r => 'Link for ' + r.name + ' is ready. Send it only to them.');
+  if (!r.ok) return; lastLink = r.link; $('link').textContent = r.link; $('link').style.display = 'block'; $('linkbtns').hidden = false; $('sharebtn').hidden = !navigator.share; $('who').value = ''; people();
+}
+function copyLink() { navigator.clipboard.writeText(lastLink).then(() => say('Copied. Paste it into a message to your friend.'), () => say('Select the link above and copy it.', true)); }
+function shareLink() { navigator.share({ title: 'My Bluetooth devices', text: 'Open this to reach the Bluetooth devices I switch on for you:', url: lastLink }).catch(() => {}); }
+async function people() {
+  const r = await post('people'); const box = $('people'); if (!r.ok) return; box.innerHTML = '';
+  const far_ = r.people.filter(p => !p.owner);
+  if (!far_.length) { box.appendChild(el('div', 'kv', 'Nobody yet. Make a link above.')); return; }
+  for (const p of far_) {
+    const row = el('div', 'kv'), t = el('div'); t.appendChild(el('b', '', p.name)); t.appendChild(el('small', '', 'invited ' + p.since + (p.last_call ? ' · last used ' + p.last_call : ' · not used yet'))); row.appendChild(t);
+    const b = el('button', '', 'Remove'); b.onclick = async () => { const x = await post('revoke', { name: p.name }); say(x.ok ? p.name + ' can no longer reach this home.' : x.error, !x.ok); people(); }; row.appendChild(b); box.appendChild(row);
+  }
+}
+status().then(() => load(0)).then(() => load(4)); setInterval(status, 5000);
+</script>
