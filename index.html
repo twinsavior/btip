@@ -275,11 +275,14 @@ function live() {        // the live screen. At home an <img> reads the MJPEG st
 function wirePad(img) {        // the card is not in the page yet when this runs, so it takes the picture itself
   img = img || $('img'); if (!img || img.wired) return; img.wired = true; let down = 0;
   img.onerror = () => { if (!FAR) setTimeout(() => { if ($('pad') && $('pad').className) live(); }, 2000); };
-  img.addEventListener('pointerdown', e => { down = performance.now(); e.preventDefault(); });
+  let sx = 0, sy = 0;
+  img.addEventListener('pointerdown', e => { down = performance.now(); sx = e.clientX; sy = e.clientY; e.preventDefault(); try { img.setPointerCapture(e.pointerId); } catch (_) {} });
   img.addEventListener('pointerup', e => {
-    const b = img.getBoundingClientRect(), x = (e.clientX - b.left) / b.width, y = (e.clientY - b.top) / b.height, long = performance.now() - down > 500;
+    const b = img.getBoundingClientRect(), f = (cx, cy) => [+((cx - b.left) / b.width).toFixed(4), +((cy - b.top) / b.height).toFixed(4)], long = performance.now() - down > 500;
+    const [x, y] = f(e.clientX, e.clientY), [x1, y1] = f(sx, sy), moved = Math.hypot(e.clientX - sx, e.clientY - sy) > 12;
     const p = $('ping'); p.style.left = (e.clientX - b.left) + 'px'; p.style.top = (e.clientY - b.top) + 'px'; p.style.opacity = 1; setTimeout(() => p.style.opacity = 0, 300);
-    call('tap', { x: +x.toFixed(4), y: +y.toFixed(4), hold_s: long ? 0.8 : 0.08 }, null, long ? 'Long press sent.' : 'Tap sent.');
+    if (moved) call('drag', { x1, y1, x2: x, y2: y }, null, 'Swipe sent.');        // a finger that moved is a swipe: pages, sliders, reordering
+    else call('tap', { x, y, hold_s: long ? 0.8 : 0.08 }, null, long ? 'Long press sent.' : 'Tap sent.');
   });
   img.addEventListener('contextmenu', e => e.preventDefault());
 }
