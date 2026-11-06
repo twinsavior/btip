@@ -34,7 +34,7 @@
   #foot { color:var(--dim); font-size:14px; padding:4px 2px; }
   #pad { display:none; margin-top:12px; } #pad.on { display:block; }
   #screen { position:relative; margin:0 auto 12px; max-width:380px; }
-  #screen img, #screen canvas { display:block; width:100%; aspect-ratio:820/1180; object-fit:contain; border-radius:16px; border:1px solid var(--line); background:#000; touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  #screen [hidden] { display:none; } #screen img, #screen canvas { display:block; width:100%; aspect-ratio:820/1180; object-fit:contain; border-radius:16px; border:1px solid var(--line); background:#000; touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
   #ping { position:absolute; width:30px; height:30px; margin:-15px; border-radius:50%; border:2px solid var(--blue); opacity:0; pointer-events:none; transition:opacity .5s; }
   .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; } .row input { flex:1; min-width:0; background:#0b0d0f; color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:10px 12px; font:inherit; }
   audio { width:100%; margin-top:8px; }
@@ -319,12 +319,12 @@ function wirePad(img) {        // the card is not in the page yet when this runs
   };
   img.addEventListener('pointerdown', e => {
     down = performance.now(); sx = e.clientX; sy = e.clientY; e.preventDefault(); try { img.setPointerCapture(e.pointerId); } catch (_) {}
-    pressed = true; t0 = down; const [x, y] = at(e.clientX, e.clientY); ping(e.clientX, e.clientY, true); path.push({ p: 'down', x, y, t: 0 }); setTimeout(flush, 40);        // 40 ms: the first moves ride with the down, so the finger never sits still for a round trip
+    pressed = true; t0 = down; const [x, y] = at(e.clientX, e.clientY); ping(e.clientX, e.clientY, true); path.push({ p: 'down', x, y, t: 0 }); setTimeout(flush, 150);        // the down waits up to 150 ms for its first moves or the lift, so the finger never sits still for a round trip (the device reads that as press-and-hold)
   });
   img.addEventListener('pointermove', e => {
     if (!pressed) return; const [x, y] = at(e.clientX, e.clientY), t = Math.round(performance.now() - t0); ping(e.clientX, e.clientY, true);
     const last = path[path.length - 1]; if (last && last.p === 'move' && t - last.t < 16) { last.x = x; last.y = y; last.t = t; } else path.push({ p: 'move', x, y, t });
-    flush();
+    if (t > 60) flush();        // the first 60 ms of moves ride with the down
   });
   img.addEventListener('pointerup', e => {
     pressed = false; const [x, y] = at(e.clientX, e.clientY), t = Math.round(performance.now() - t0), long = performance.now() - down > 500, moved = Math.hypot(e.clientX - sx, e.clientY - sy) > 12;
