@@ -21,7 +21,7 @@ curl -fsSL https://twinsavior.github.io/btip/install.sh | sh
 | File | What it is |
 |---|---|
 | `install.sh` | the script that line runs. It checks the checksum of everything it downloads |
-| `btip-home-0.7.0.tar.gz` | the btip code, the keyboard helper and the btip Home menu bar app |
+| `btip-home-0.7.1.tar.gz` | the btip code, the keyboard helper and the btip Home menu bar app |
 | `btip-eyes-1-arm64.tar.gz` | the screen receiver (UxPlay and GStreamer). A home downloads it only when it drives a tablet's screen |
 
 To remove all of it: `curl -fsSL https://twinsavior.github.io/btip/install.sh | sh -s uninstall`
