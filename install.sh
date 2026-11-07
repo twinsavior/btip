@@ -14,9 +14,9 @@
 # For tests: BTIP_DIR, BTIP_APPS, BTIP_LABEL, BTIP_PORT, BTIP_PAGE and BTIP_SRC (a .tar.gz path or URL) move
 # each part, so a second copy can run next to a first one.
 set -eu
-VERSION=0.7.0
+VERSION=0.7.1
 SRC="${BTIP_SRC:-https://twinsavior.github.io/btip/btip-home-$VERSION.tar.gz}"
-SRC_SHA="bac27ac080c97e473b5820a005b4267bd6e033f8615802df92a21f59cce19944"        # build.sh writes the checksum of the published tarball here; a local test tarball is not checked
+SRC_SHA="e7fe3776cee64f6c0bc7ef4d89fb503c3ea305a0f2aca14a1cfd2606f225cbc6"        # build.sh writes the checksum of the published tarball here; a local test tarball is not checked
 D="${BTIP_DIR:-$HOME/Library/Application Support/btip}"
 APPS="${BTIP_APPS:-$HOME/Applications}"
 LABEL="${BTIP_LABEL:-io.github.twinsavior.btip.home}"
