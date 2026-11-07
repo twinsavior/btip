@@ -238,7 +238,7 @@ async function facts(d) {
   const bits = [];
   if (!Object.keys(r.facts).length) bits.push('It connected and shares no standard facts');
   if (r.private_values) bits.push(r.private_values + ' values in its maker’s own format');
-  if (r.writable) bits.push(r.writable + ' values it accepts');
+  if (r.writable) bits.push(d.access === 'read-only' ? r.writable + ' settings only its owner can change' : r.writable + ' settings you can change');
   if (r.locked_values) bits.push(r.locked_values + ' values that need pairing at home');
   if (bits.length) g.appendChild(el('p', '', bits.join('. ') + '.'));
 }
